@@ -5,6 +5,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "styled-components";
 
 import { HighlightCard } from "@components/HighlightCard";
+
+import { useAuth } from "@hooks/auth";
+
 import {
   TransactionCard,
   TransactionCardProps,
@@ -27,8 +30,6 @@ interface HighlightData {
   total: HighlightProps;
 }
 
-const { STORAGE_KEY } = process.env;
-
 export function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [transactions, setTransactions] = useState<DataListProps[]>([]);
@@ -36,18 +37,28 @@ export function Dashboard() {
     {} as HighlightData
   );
 
+  const { user, signOut, storageTransactionKey } = useAuth();
+
   const theme = useTheme();
 
   function getLastTransactionDate(
     collection: DataListProps[],
     type: "positive" | "negative"
   ) {
+    const collectionFiltered = collection.filter(
+      (transaction) => transaction.type === type
+    );
+
+    if (collectionFiltered.length === 0) {
+      return 0;
+    }
+
     const lastTransaction = new Date(
       Math.max.apply(
         Math,
-        collection
-          .filter((transaction) => transaction.type === type)
-          .map((transaction) => new Date(transaction.date).getTime())
+        collectionFiltered.map((transaction) =>
+          new Date(transaction.date).getTime()
+        )
       )
     );
 
@@ -58,8 +69,8 @@ export function Dashboard() {
   }
 
   async function loadTransactions() {
-    const dataKey = `${STORAGE_KEY}:transactions`;
-    const response = await AsyncStorage.getItem(dataKey);
+    console.log("storageTransactionKey:", storageTransactionKey);
+    const response = await AsyncStorage.getItem(storageTransactionKey);
     const transactions = response ? JSON.parse(response) : [];
 
     let entriesTotal = 0;
@@ -101,7 +112,10 @@ export function Dashboard() {
       transactions,
       "negative"
     );
-    const totalInterval = `01 a ${lastTransactionsExpensive}`;
+    const totalInterval =
+      lastTransactionsExpensive === 0
+        ? "Não há transações"
+        : `01 a ${lastTransactionsExpensive}`;
 
     const total = entriesTotal - expensiveTotal;
 
@@ -111,14 +125,20 @@ export function Dashboard() {
           style: "currency",
           currency: "BRL",
         }),
-        lastTransaction: `Última entrada dia ${lastTransactionsEntries}`,
+        lastTransaction:
+          lastTransactionsEntries === 0
+            ? "Não há transações"
+            : `Última entrada dia ${lastTransactionsEntries}`,
       },
       expensive: {
         amount: expensiveTotal.toLocaleString("pt-BR", {
           style: "currency",
           currency: "BRL",
         }),
-        lastTransaction: `Última entrada dia ${lastTransactionsExpensive}`,
+        lastTransaction:
+          lastTransactionsExpensive === 0
+            ? "Não há transações"
+            : `Última entrada dia ${lastTransactionsExpensive}`,
       },
       total: {
         amount: total.toLocaleString("pt-BR", {
@@ -131,10 +151,6 @@ export function Dashboard() {
 
     setIsLoading(false);
   }
-
-  useEffect(() => {
-    loadTransactions();
-  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -160,16 +176,16 @@ export function Dashboard() {
               <S.UserInfo>
                 <S.Photo
                   source={{
-                    uri: "https://avatars.githubusercontent.com/u/26713717?v=4",
+                    uri: user.photo,
                   }}
                 />
                 <S.User>
                   <S.UserGreeting>Olá</S.UserGreeting>
-                  <S.UserName>Marcelo</S.UserName>
+                  <S.UserName>{user.name}</S.UserName>
                 </S.User>
               </S.UserInfo>
 
-              <S.LogoutButton onPress={() => {}}>
+              <S.LogoutButton onPress={signOut}>
                 <S.Icon name="power" />
               </S.LogoutButton>
             </S.UserWrapper>

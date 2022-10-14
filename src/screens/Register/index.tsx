@@ -14,10 +14,9 @@ import { Button } from "@components/Form/Button";
 import { TransactionTypeButton } from "@components/Form/TransactionTypeButton";
 import { CategorySelectButton } from "@components/Form/CategorySelectButton";
 import { CategorySelect } from "@screens/CategorySelect";
-
 import { ICategory } from "@screens/CategorySelect";
 
-const { STORAGE_KEY } = process.env;
+import { useAuth } from "@hooks/auth";
 
 import * as S from "./styles";
 
@@ -39,6 +38,8 @@ const schema = Yup.object().shape({
 export function Register() {
   const [transactionType, setTransactionType] = useState("");
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+
+  const { storageTransactionKey } = useAuth();
 
   const navigation = useNavigation();
 
@@ -70,8 +71,6 @@ export function Register() {
   }
 
   async function handleRegister(form: FormData) {
-    const dataKey = `${STORAGE_KEY}:transactions`;
-
     if (!transactionType) {
       return Alert.alert("Selecione o tipo da transação.");
     }
@@ -90,12 +89,15 @@ export function Register() {
     };
 
     try {
-      const data = await AsyncStorage.getItem(dataKey);
+      const data = await AsyncStorage.getItem(storageTransactionKey);
       const currentData = data ? JSON.parse(data) : [];
 
       const dataFormatted = [...currentData, newTransaction];
 
-      await AsyncStorage.setItem(dataKey, JSON.stringify(dataFormatted));
+      await AsyncStorage.setItem(
+        storageTransactionKey,
+        JSON.stringify(dataFormatted)
+      );
 
       reset();
       setTransactionType("");
